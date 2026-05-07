@@ -10,17 +10,17 @@
     <div id="app-container">
         
         <section id="state-boot">
-            <h1 class="text-neon">LOADING ASSETS...</h1>
+            <h1 class="text-title text-bounce">MEMUAT ASET...</h1>
         </section>
 
         <section id="state-idle" class="hidden">
-            <h1 class="text-neon">SENTUH LAYAR UNTUK BERMAIN</h1>
+            <h1 class="text-title">SENTUH LAYAR<br>UNTUK BERMAIN!</h1>
         </section>
 
         <section id="state-register" class="hidden">
             <div class="form-group">
-                <input type="text" id="input-player-name" maxlength="15" placeholder="Masukkan Nama Anda">
-                <button id="btn-start-game" class="btn-primary">MULAI</button>
+                <input type="text" id="input-player-name" maxlength="15" placeholder="Siapa namamu?">
+                <button id="btn-start-game" class="btn-primary">MULAI MAIN</button>
             </div>
             <div id="keyboard-container"></div>
         </section>
@@ -32,29 +32,31 @@
             <img id="kiosk-chopstick" src="" alt="">
             
             <div id="ui-hud">
-                <div id="ui-timer">10.0</div>
-                <div id="ui-decibel-meter">0 dB</div>
+                <div id="ui-timer" class="hud-box">10.0s</div>
+                <div id="ui-decibel-meter" class="hud-box">0 dB</div>
             </div>
         </section>
 
         <section id="state-result" class="hidden">
-            <h2 class="text-neon">SKOR ANDA</h2>
+            <h2 class="text-title">YAY! SKOR KAMU:</h2>
             <div id="final-score-display">0</div>
         </section>
 
         <section id="state-leaderboard" class="hidden">
-            <h2 class="text-neon">LEADERBOARD</h2>
-            <table id="leaderboard-table">
-                <thead>
-                    <tr>
-                        <th>Peringkat</th>
-                        <th>Nama</th>
-                        <th>Skor</th>
-                    </tr>
-                </thead>
-                <tbody id="leaderboard-body">
-                    </tbody>
-            </table>
+            <h2 class="text-title">LEADERBOARD</h2>
+            <div class="table-card">
+                <table id="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Nama</th>
+                            <th>Skor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body">
+                        </tbody>
+                </table>
+            </div>
         </section>
 
     </div>
