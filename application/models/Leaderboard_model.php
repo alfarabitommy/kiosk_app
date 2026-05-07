@@ -1,5 +1,3 @@
-<!-- // File: application/models/Leaderboard_model.php -->
-
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
