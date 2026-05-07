@@ -1,0 +1,122 @@
+/* File: assets/kiosk/css/style.css */
+/* Minimalist Luxury & White-Label Strict */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Courier New', Courier, monospace; /* Tipografi ala terminal data */
+    user-select: none;
+}
+
+body {
+    background-color: #050505; /* Tema gelap gulita */
+    color: #ffffff;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#app-container {
+    width: 1080px; /* Resolusi Portrait */
+    height: 1920px;
+    background-color: #0a0a0a;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+
+section {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.hidden {
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.text-neon {
+    color: #00ffcc; /* Aksen neon indikator */
+    text-shadow: 0 0 10px #00ffcc;
+    font-size: 3rem;
+    text-align: center;
+}
+
+.btn-primary {
+    background-color: transparent;
+    color: #00ffcc;
+    border: 2px solid #00ffcc;
+    padding: 20px 60px;
+    font-size: 2rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+}
+
+.btn-primary:active {
+    background-color: #00ffcc;
+    color: #000;
+}
+
+/* Gameplay Elements */
+#kiosk-bg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+
+#kiosk-bowl {
+    position: absolute;
+    bottom: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+}
+
+#kiosk-noodle {
+    position: absolute;
+    bottom: 10%;
+    left: 50%;
+    transform: translateX(-50%) translateY(0px);
+    z-index: 2;
+    transition: transform 0.1s linear;
+}
+
+#kiosk-chopstick {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 4;
+}
+
+#ui-hud {
+    position: absolute;
+    top: 5%;
+    width: 90%;
+    display: flex;
+    justify-content: space-between;
+    z-index: 10;
+}
+
+#ui-timer, #ui-decibel-meter {
+    font-size: 4rem;
+    color: #00ffcc;
+    font-weight: bold;
+    text-shadow: 0 0 15px #00ffcc;
+}
