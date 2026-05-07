@@ -206,6 +206,204 @@ td {
 }
 <!-- end file assets/kiosk/css/style.css -->
 
+<!-- file assets/admin/css/admin_style.css -->
+/* File: assets/admin/css/admin_style.css */
+/* Kiosk CMS Admin - Cheerful Pastel Theme */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', 'Quicksand', 'Nunito', Tahoma, sans-serif;
+}
+
+body {
+    background-color: #fef6f8; /* Soft baby pink */
+    color: #5d4037;
+}
+
+.login-container {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #ffdac1 0%, #fce4ec 100%);
+}
+
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: 260px;
+    background-color: #ffffff;
+    padding: 30px 20px;
+    box-shadow: 5px 0 20px rgba(255, 182, 193, 0.2);
+    z-index: 10;
+}
+
+.sidebar h2 {
+    color: #ff9aa2;
+    text-align: center;
+    margin-bottom: 40px;
+    font-size: 1.8rem;
+}
+
+.sidebar a {
+    display: block;
+    padding: 15px 20px;
+    color: #5d4037;
+    text-decoration: none;
+    font-weight: bold;
+    border-radius: 15px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+    background-color: #f9f9f9;
+}
+
+.sidebar a:hover, .sidebar a.active {
+    background-color: #b5ead7;
+    transform: translateX(5px);
+}
+
+.sidebar a.logout {
+    background-color: #ffe5e5;
+    color: #ff6b6b;
+    margin-top: 50px;
+}
+
+.main-content {
+    flex: 1;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.page-title {
+    color: #ff9aa2;
+    margin-bottom: 30px;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 0px #ffe5e5;
+}
+
+.card {
+    background-color: #ffffff;
+    border-radius: 25px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(255, 182, 193, 0.15);
+    border: 3px solid #fff0f5;
+    margin-bottom: 30px;
+}
+
+.card-title {
+    color: #b5ead7;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    border-bottom: 2px dashed #e2f0cb;
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #ff9aa2;
+}
+
+.form-control {
+    width: 100%;
+    padding: 15px;
+    border: 3px solid #ffe5e5;
+    border-radius: 15px;
+    font-size: 1.1rem;
+    color: #5d4037;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.form-control:focus {
+    border-color: #ffdac1;
+}
+
+.btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 15px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+.btn-primary {
+    background-color: #b5ead7;
+    color: #5d4037;
+    box-shadow: 0 5px 15px rgba(181, 234, 215, 0.4);
+}
+
+.btn-danger {
+    background-color: #ff9aa2;
+    color: #ffffff;
+    box-shadow: 0 5px 15px rgba(255, 154, 162, 0.4);
+}
+
+.alert {
+    padding: 15px 20px;
+    border-radius: 15px;
+    margin-bottom: 25px;
+    font-weight: bold;
+}
+
+.alert-success {
+    background-color: #e2f0cb;
+    color: #4a7c59;
+}
+
+.alert-error {
+    background-color: #ffdac1;
+    color: #d84315;
+}
+
+/* Table Style */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th, .data-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 2px dashed #fff0f5;
+}
+
+.data-table th {
+    color: #ff9aa2;
+    font-weight: 900;
+}
+
+.stat-box {
+    text-align: center;
+    padding: 40px;
+}
+
+.stat-number {
+    font-size: 5rem;
+    color: #b5ead7;
+    font-weight: 900;
+    text-shadow: 3px 3px 0px #e2f0cb;
+}
+<!-- end file assets/admin/css/admin_style.css -->
+
 <!-- file assets/kiosk/js/app.js -->
 const appState = {
     currentState: 'state-boot',
@@ -499,3 +697,219 @@ class Leaderboard_model extends CI_Model {
 </body>
 </html>
 <!-- end file application/views/kiosk_view.php -->
+
+<!-- file application/views/admin/login_view.php -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Login</title>
+    <link rel="stylesheet" href="<?= base_url('assets/admin/css/admin_style.css'); ?>">
+</head>
+<body>
+    <div class="login-container">
+        <div class="card" style="width: 400px;">
+            <h2 class="page-title" style="text-align: center; margin-bottom: 10px;">CMS System</h2>
+            <p style="text-align: center; margin-bottom: 30px; font-weight: bold;">Authorized Personnel Only</p>
+            
+            <?php if($this->session->flashdata('error')): ?>
+                <div class="alert alert-error"><?= $this->session->flashdata('error'); ?></div>
+            <?php endif; ?>
+
+            <form action="<?= site_url('auth/login_process'); ?>" method="POST">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" class="form-control" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">LOGIN</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+<!-- end file application/views/admin/login_view.php -->
+
+<!-- file application/views/admin/dashboard_view.php -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $page_title; ?></title>
+    <link rel="stylesheet" href="<?= base_url('assets/admin/css/admin_style.css'); ?>">
+</head>
+<body>
+    <div class="admin-layout">
+        <div class="sidebar">
+            <h2>Kiosk CMS</h2>
+            <a href="<?= site_url('admin'); ?>" class="active">Dashboard</a>
+            <a href="<?= site_url('admin/settings'); ?>">Game Settings</a>
+            <a href="<?= site_url('admin/leaderboard'); ?>">Leaderboard</a>
+            <a href="<?= site_url('auth/logout'); ?>" class="logout">Logout</a>
+        </div>
+        
+        <div class="main-content">
+            <h1 class="page-title"><?= $page_title; ?></h1>
+            
+            <div class="card stat-box">
+                <h3 class="card-title" style="text-align: center; border: none;">Total Pemain (All Time)</h3>
+                <div class="stat-number"><?= $total_players; ?></div>
+                <p>Peserta telah berpartisipasi dalam interaksi Kiosk.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+<!-- end file application/views/admin/dashboard_view.php -->
+
+<!-- file application/views/admin/settings_view.php -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $page_title; ?></title>
+    <link rel="stylesheet" href="<?= base_url('assets/admin/css/admin_style.css'); ?>">
+</head>
+<body>
+    <div class="admin-layout">
+        <div class="sidebar">
+            <h2>Kiosk CMS</h2>
+            <a href="<?= site_url('admin'); ?>">Dashboard</a>
+            <a href="<?= site_url('admin/settings'); ?>" class="active">Game Settings</a>
+            <a href="<?= site_url('admin/leaderboard'); ?>">Leaderboard</a>
+            <a href="<?= site_url('auth/logout'); ?>" class="logout">Logout</a>
+        </div>
+        
+        <div class="main-content">
+            <h1 class="page-title"><?= $page_title; ?></h1>
+
+            <?php if($this->session->flashdata('success')): ?>
+                <div class="alert alert-success"><?= $this->session->flashdata('success'); ?></div>
+            <?php endif; ?>
+            <?php if($this->session->flashdata('error')): ?>
+                <div class="alert alert-error"><?= $this->session->flashdata('error'); ?></div>
+            <?php endif; ?>
+
+            <div class="card">
+                <h3 class="card-title">Logika & Aturan Game</h3>
+                <form action="<?= site_url('admin/settings'); ?>" method="POST">
+                    <div class="form-group">
+                        <label>Durasi Permainan (Detik)</label>
+                        <input type="number" name="timer_sec" class="form-control" value="<?= isset($settings['timer_sec']) ? $settings['timer_sec'] : 10; ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Noise Gate (Batas Bawah Desibel)</label>
+                        <input type="number" name="noise_gate_db" class="form-control" value="<?= isset($settings['noise_gate_db']) ? $settings['noise_gate_db'] : 40; ?>" required>
+                        <small style="color: #ff9aa2;">*Suara di bawah angka ini akan diabaikan (mencegah sumpit naik karena suara latar/musik mall).</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Scoring Mode</label>
+                        <select name="scoring_mode" class="form-control" required>
+                            <option value="power" <?= (isset($settings['scoring_mode']) && $settings['scoring_mode'] == 'power') ? 'selected' : ''; ?>>Power (Desibel Tertinggi Saja)</option>
+                            <option value="endurance" <?= (isset($settings['scoring_mode']) && $settings['scoring_mode'] == 'endurance') ? 'selected' : ''; ?>>Endurance (Durasi Terlama Berteriak)</option>
+                            <option value="hybrid" <?= (isset($settings['scoring_mode']) && $settings['scoring_mode'] == 'hybrid') ? 'selected' : ''; ?>>Hybrid (Gabungan Power & Endurance)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">SIMPAN ATURAN</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Reskin Assets (White-Label)</h3>
+                <form action="<?= site_url('admin/upload_asset'); ?>" method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Pilih Aset untuk Diganti</label>
+                        <select name="asset_key" class="form-control" required>
+                            <option value="bg_main">Background Game (.jpg/.png)</option>
+                            <option value="prop_bowl">Gambar Mangkuk (.png transparan)</option>
+                            <option value="prop_noodle">Gambar Mie (.png transparan)</option>
+                            <option value="prop_chopstick">Gambar Sumpit (.png transparan)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>File Gambar Baru</label>
+                        <input type="file" name="asset_file" class="form-control" accept=".png, .jpg, .jpeg" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">UPLOAD & TIMPA ASET</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+<!-- end file application/views/admin/settings_view.php -->
+
+<!-- file application/views/admin/leaderboard_view.php -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $page_title; ?></title>
+    <link rel="stylesheet" href="<?= base_url('assets/admin/css/admin_style.css'); ?>">
+</head>
+<body>
+    <div class="admin-layout">
+        <div class="sidebar">
+            <h2>Kiosk CMS</h2>
+            <a href="<?= site_url('admin'); ?>">Dashboard</a>
+            <a href="<?= site_url('admin/settings'); ?>">Game Settings</a>
+            <a href="<?= site_url('admin/leaderboard'); ?>" class="active">Leaderboard</a>
+            <a href="<?= site_url('auth/logout'); ?>" class="logout">Logout</a>
+        </div>
+        
+        <div class="main-content">
+            <h1 class="page-title"><?= $page_title; ?></h1>
+
+            <?php if($this->session->flashdata('success')): ?>
+                <div class="alert alert-success"><?= $this->session->flashdata('success'); ?></div>
+            <?php endif; ?>
+
+            <div style="margin-bottom: 20px; display: flex; gap: 15px;">
+                <a href="<?= site_url('admin/export_csv'); ?>" class="btn btn-primary">Download CSV (.csv)</a>
+                <a href="<?= site_url('admin/reset_leaderboard'); ?>" class="btn btn-danger" onclick="return confirm('PERINGATAN: Semua data skor akan dihapus permanen. Lanjutkan?');">Reset/Hapus Semua Data</a>
+            </div>
+
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Nama Pemain</th>
+                            <th>Peak (dB)</th>
+                            <th>Sustain (ms)</th>
+                            <th>Skor Akhir</th>
+                            <th>Waktu Bermain</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if(!empty($leaderboard_data)): ?>
+                            <?php $rank = 1; foreach($leaderboard_data as $row): ?>
+                            <tr>
+                                <td>#<?= $rank++; ?></td>
+                                <td><strong><?= htmlspecialchars($row['player_name']); ?></strong></td>
+                                <td><?= $row['peak_db']; ?></td>
+                                <td><?= $row['duration_ms']; ?></td>
+                                <td style="color: #b5ead7; font-weight: bold; font-size: 1.2rem;"><?= number_format($row['final_score']); ?></td>
+                                <td><?= $row['created_at']; ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: #ff9aa2;">Belum ada data pemain.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+<!-- end file application/views/admin/leaderboard_view.php -->
