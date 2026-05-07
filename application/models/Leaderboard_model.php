@@ -28,13 +28,13 @@ class Leaderboard_model extends CI_Model {
 
         $final_score = 0;
 
-        // Kalkulasi dinamis berdasarkan mode [cite: 51, 52, 53]
+        // Kalkulasi dinamis berdasarkan mode 
         if ($mode === 'power') {
             $final_score = (int) ($peak_db * $w_power);
         } elseif ($mode === 'endurance') {
             $final_score = (int) ($duration_ms * $w_endurance);
         } else {
-            // Mode Hybrid: (Peak dB * Bobot X) + (Duration ms * Bobot Y) [cite: 53]
+            // Mode Hybrid: (Peak dB * Bobot X) + (Duration ms * Bobot Y) 
             $final_score = (int) (($peak_db * $w_power) + ($duration_ms * $w_endurance));
         }
 
