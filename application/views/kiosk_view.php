@@ -10,17 +10,17 @@
     <div id="app-container">
         
         <section id="state-boot">
-            <h1 class="text-title text-bounce">MEMUAT ASET...</h1>
+            <h1 class="text-title text-bounce">LOADING ASSET...</h1>
         </section>
 
         <section id="state-idle" class="hidden">
-            <h1 class="text-title">SENTUH LAYAR<br>UNTUK BERMAIN!</h1>
+            <h1 class="text-title">TOUCH THE SCREEN<br>TO PLAY!</h1>
         </section>
 
         <section id="state-register" class="hidden">
             <div class="form-group">
-                <input type="text" id="input-player-name" maxlength="15" placeholder="Siapa namamu?">
-                <button id="btn-start-game" class="btn-primary">MULAI MAIN</button>
+                <input type="text" id="input-player-name" maxlength="15" placeholder="Who are you?">
+                <button id="btn-start-game" class="btn-primary">START</button>
             </div>
             <div id="keyboard-container"></div>
         </section>
@@ -38,7 +38,7 @@
         </section>
 
         <section id="state-result" class="hidden">
-            <h2 class="text-title">YAY! SKOR KAMU:</h2>
+            <h2 class="text-title">YAY! YOUR SCORE IS :</h2>
             <div id="final-score-display">0</div>
         </section>
 
@@ -49,8 +49,8 @@
                     <thead>
                         <tr>
                             <th>Rank</th>
-                            <th>Nama</th>
-                            <th>Skor</th>
+                            <th>Name</th>
+                            <th>Score</th>
                         </tr>
                     </thead>
                     <tbody id="leaderboard-body">
