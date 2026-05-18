@@ -1,4 +1,6 @@
 <?php
+// File: application/controllers/Api.php
+// Description: API Controller dengan tambahan endpoint sinkronisasi massal (batch sync) dari database lokal Kiosk
 
 defined('BASEPATH') OR exit('No direct script access allowed');
 
@@ -11,12 +13,17 @@ class Api extends CI_Controller {
         
         header('Content-Type: application/json');
         header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET, POST');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With');
+        
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            exit(0);
+        }
     }
 
     public function init() {
         $location_code = $this->input->get('loc', TRUE);
-        if (empty($location_code)) $location_code = 'JKT-01'; // Fallback
+        if (empty($location_code)) $location_code = 'JKT-01';
 
         $settings = $this->Settings_model->get_all_settings($location_code);
         $assets = $this->Settings_model->get_all_assets($location_code);
@@ -58,5 +65,44 @@ class Api extends CI_Controller {
 
         $top_10 = $this->Leaderboard_model->get_top_10($location_code);
         echo json_encode(array('status' => 200, 'data' => $top_10));
+    }
+
+    // Endpoint Baru: Menerima kiriman data massal dari IndexedDB Kiosk Offline
+    public function sync_batch() {
+        $stream_clean = $this->security->xss_clean($this->input->raw_input_stream);
+        $request = json_decode($stream_clean, true);
+
+        if (!isset($request['scores']) || !is_array($request['scores'])) {
+            echo json_encode(array('status' => 400, 'message' => 'Payload data tidak valid.'));
+            return;
+        }
+
+        $inserted_records = 0;
+        foreach ($request['scores'] as $row) {
+            $player_name = isset($row['player_name']) ? $row['player_name'] : 'OFFLINE_PLY';
+            $peak_db = isset($row['peak_db']) ? (float)$row['peak_db'] : 0;
+            $duration_ms = isset($row['duration_ms']) ? (int)$row['duration_ms'] : 0;
+            $location_code = isset($row['location_code']) ? $row['location_code'] : 'JKT-01';
+            $created_at = isset($row['created_at']) ? $row['created_at'] : date('Y-m-d H:i:s');
+
+            // Insert langsung tanpa hitung ulang skor karena skor sudah dihitung valid secara lokal di client side
+            $data = array(
+                'location_code' => $location_code,
+                'player_name'   => $player_name,
+                'peak_db'       => $peak_db,
+                'duration_ms'   => $duration_ms,
+                'final_score'   => (int)$row['final_score'],
+                'created_at'    => $created_at
+            );
+
+            $this->db->insert('game_leaderboard', $data);
+            $inserted_records++;
+        }
+
+        echo json_encode(array(
+            'status' => 200,
+            'message' => 'Sinkronisasi sukses dilakukan.',
+            'synced_count' => $inserted_records
+        ));
     }
 }

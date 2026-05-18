@@ -406,11 +406,9 @@ body {
 
 <!-- file assets/kiosk/js/app.js -->
 // File: assets/kiosk/js/app.js
-// Description: State Machine Kiosk yang mengekstrak parameter URL '?loc=' untuk partisi multi-tenant
 
-// Membaca KTP/Identitas Lokasi Kiosk dari Parameter Tautan Browser (?loc=)
 const urlParams = new URLSearchParams(window.location.search);
-const LOCATION_CODE = urlParams.get('loc') || 'JKT-01'; // Default ke JKT-01 jika tanpa parameter
+const LOCATION_CODE = urlParams.get('loc') || 'JKT-01';
 
 const API_BASE = '/api'; 
 
@@ -418,7 +416,8 @@ const appState = {
     currentState: 'state-boot',
     settings: {
         timer_sec: 10,
-        noise_gate_db: 40
+        noise_gate_db: 40,
+        scoring_mode: 'hybrid' 
     },
     playerData: {
         name: '',
@@ -427,10 +426,33 @@ const appState = {
     },
     gameInterval: null,
     timeRemaining: 0,
-    idleTimeout: null
+    idleTimeout: null,
+    isOnline: true 
 };
 
 const bannedWords = ['anjing', 'babi', 'bangsat', 'kontol', 'memek', 'jancok'];
+
+let localDb;
+const dbRequest = indexedDB.open('KioskLocalStorageDB', 1);
+
+dbRequest.onupgradeneeded = (e) => {
+    localDb = e.target.result;
+    if (!localDb.objectStoreNames.contains('local_scores')) {
+        const store = localDb.createObjectStore('local_scores', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('location_code', 'location_code', { unique: false });
+        store.createIndex('is_synced', 'is_synced', { unique: false });
+        store.createIndex('created_at', 'created_at', { unique: false });
+    }
+};
+
+dbRequest.onsuccess = (e) => {
+    localDb = e.target.result;
+    console.log("IndexedDB Offline System Terinisialisasi.");
+};
+
+dbRequest.onerror = () => {
+    console.error("Gagal mengaktifkan database lokal IndexedDB.");
+};
 
 function changeState(newStateId) {
     document.querySelectorAll('section').forEach(sec => {
@@ -443,32 +465,36 @@ function changeState(newStateId) {
 
 window.onload = () => {
     fetchInitData();
-    document.addEventListener('contextmenu', event => event.preventDefault());
-    document.addEventListener('dragstart', event => event.preventDefault());
+    setupAdminControls();
 };
 
 async function fetchInitData() {
     try {
-        // Mengirimkan parameter loc agar server mengirimkan aset khusus cabang ini
         const res = await fetch(`${API_BASE}/init?loc=${LOCATION_CODE}`);
         const data = await res.json();
         
         if (data.status === 200) {
+            appState.isOnline = true;
             appState.settings.timer_sec = parseInt(data.settings.timer_sec) || 10;
             appState.settings.noise_gate_db = parseInt(data.settings.noise_gate_db) || 40;
+            appState.settings.scoring_mode = data.settings.scoring_mode || 'hybrid';
             
             if(data.assets.bg_main) document.getElementById('kiosk-bg').src = '/' + data.assets.bg_main;
             if(data.assets.prop_bowl) document.getElementById('kiosk-bowl').src = '/' + data.assets.prop_bowl;
             if(data.assets.prop_noodle) document.getElementById('kiosk-noodle').src = '/' + data.assets.prop_noodle;
             if(data.assets.prop_chopstick) document.getElementById('kiosk-chopstick').src = '/' + data.assets.prop_chopstick;
         }
-        
-        setTimeout(() => {
-            changeState('state-idle');
-        }, 1500); 
+        setTimeout(() => { changeState('state-idle'); }, 1500); 
     } catch (err) {
-        console.error("Gagal memuat API Init untuk tenant:", err);
-        alert("Koneksi API Gagal. Periksa Network Inspector.");
+        console.warn("Kiosk Berjalan dalam Mode Offline (Failsafe Terbuka).");
+        appState.isOnline = false;
+        
+        document.getElementById('kiosk-bg').src = BASE_URL + 'assets/kiosk/img/bg_fallback.jpg';
+        document.getElementById('kiosk-bowl').src = BASE_URL + 'assets/kiosk/img/bowl_fallback.png';
+        document.getElementById('kiosk-noodle').src = BASE_URL + 'assets/kiosk/img/noodle_fallback.png';
+        document.getElementById('kiosk-chopstick').src = BASE_URL + 'assets/kiosk/img/chopstick_fallback.png';
+        
+        setTimeout(() => { changeState('state-idle'); }, 1500);
     }
 }
 
@@ -509,6 +535,12 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     }
 });
 
+// FIX: Event Listener untuk mengembalikan ke halaman awal dari layar Leaderboard
+document.getElementById('btn-back-home').addEventListener('click', () => {
+    changeState('state-idle');
+    document.getElementById('input-player-name').value = '';
+});
+
 function startGameplay() {
     initAudioEngine(appState.settings.noise_gate_db);
     
@@ -536,63 +568,237 @@ async function endGameplay() {
     document.getElementById('kiosk-noodle').style.transform = `translateX(-50%) translateY(0px)`;
     document.getElementById('kiosk-chopstick').style.transform = `translateX(-50%) translateY(0px)`;
     
-    try {
-        const res = await fetch(`${API_BASE}/score`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                location_code: LOCATION_CODE, // Mengirimkan identitas cabang saat klaim skor
-                player_name: appState.playerData.name,
-                peak_db: appState.playerData.peakDb,
-                duration_ms: appState.playerData.durationMs
-            })
-        });
-        const data = await res.json();
-        
-        if(data.status === 200) {
-            document.getElementById('final-score-display').innerText = data.final_score.toLocaleString();
-            changeState('state-result');
-            
-            setTimeout(() => {
-                loadLeaderboard();
-            }, 4000); 
-        }
-    } catch (err) {
-        console.error("Gagal mengirim skor cabang:", err);
-        changeState('state-idle');
+    let calculatedScore = 0;
+    const mode = appState.settings.scoring_mode;
+    if (mode === 'power') {
+        calculatedScore = Math.floor(appState.playerData.peakDb * 100);
+    } else if (mode === 'endurance') {
+        calculatedScore = Math.floor(appState.playerData.durationMs * 1);
+    } else {
+        calculatedScore = Math.floor((appState.playerData.peakDb * 100) + (appState.playerData.durationMs * 1));
     }
+
+    const timestampIso = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+    const scoreObject = {
+        location_code: LOCATION_CODE,
+        player_name: appState.playerData.name,
+        peak_db: appState.playerData.peakDb,
+        duration_ms: appState.playerData.durationMs,
+        final_score: calculatedScore,
+        created_at: timestampIso,
+        is_synced: 0
+    };
+
+    const transaction = localDb.transaction(['local_scores'], 'readwrite');
+    const store = transaction.objectStore(['local_scores']);
+    store.add(scoreObject);
+
+    document.getElementById('final-score-display').innerText = calculatedScore.toLocaleString();
+    changeState('state-result');
+
+    if (appState.isOnline) {
+        try {
+            const res = await fetch(`${API_BASE}/score`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(scoreObject)
+            });
+            const data = await res.json();
+            if (data.status === 200) {
+                const updTransaction = localDb.transaction(['local_scores'], 'readwrite');
+                const updStore = updTransaction.objectStore('local_scores');
+                scoreObject.is_synced = 1;
+                updStore.put(scoreObject);
+            }
+        } catch (err) {
+            appState.isOnline = false; 
+        }
+    }
+
+    setTimeout(() => { loadLeaderboard(); }, 4000); 
 }
 
 async function loadLeaderboard() {
-    try {
-        // Menampilkan top_scores terfilter khusus cabang ini saja
-        const res = await fetch(`${API_BASE}/top_scores?loc=${LOCATION_CODE}`);
-        const data = await res.json();
-        
-        const tbody = document.getElementById('leaderboard-body');
-        tbody.innerHTML = '';
-        
-        if(data.status === 200 && data.data.length > 0) {
-            data.data.forEach((row, index) => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>#${index + 1}</td>
-                        <td>${row.player_name}</td>
-                        <td style="color: #ff9aa2;">${parseInt(row.final_score).toLocaleString()}</td>
-                    </tr>
-                `;
-            });
-        } else {
-            tbody.innerHTML = `<tr><td colspan="3">Belum ada skor.</td></tr>`;
+    const tbody = document.getElementById('leaderboard-body');
+    tbody.innerHTML = '';
+
+    if (appState.isOnline) {
+        try {
+            const res = await fetch(`${API_BASE}/top_scores?loc=${LOCATION_CODE}`);
+            const data = await res.json();
+            if(data.status === 200 && data.data.length > 0) {
+                data.data.forEach((row, index) => {
+                    tbody.innerHTML += `<tr><td>#${index + 1}</td><td>${row.player_name}</td><td style="color:#ff9aa2;">${parseInt(row.final_score).toLocaleString()}</td></tr>`;
+                });
+                changeState('state-leaderboard');
+                document.getElementById('input-player-name').value = '';
+                return;
+            }
+        } catch (err) {
+            appState.isOnline = false;
         }
-        
-        changeState('state-leaderboard');
-        document.getElementById('input-player-name').value = '';
-        
-    } catch (err) {
-        console.error("Gagal memuat leaderboard cabang:", err);
-        changeState('state-idle');
     }
+
+    const transaction = localDb.transaction(['local_scores'], 'readonly');
+    const store = transaction.objectStore('local_scores');
+    const request = store.openCursor();
+    let localRecords = [];
+
+    request.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+            if (cursor.value.location_code === LOCATION_CODE) {
+                localRecords.push(cursor.value);
+            }
+            cursor.continue();
+        } else {
+            localRecords.sort((a, b) => b.final_score - a.final_score);
+            const top10Local = localRecords.slice(0, 10);
+
+            if (top10Local.length > 0) {
+                top10Local.forEach((row, index) => {
+                    tbody.innerHTML += `<tr><td>#${index + 1}</td><td>${row.player_name}</td><td style="color:#ff9aa2;">${row.final_score.toLocaleString()}</td></tr>`;
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="3">Belum ada skor.</td></tr>`;
+            }
+            changeState('state-leaderboard');
+            document.getElementById('input-player-name').value = '';
+        }
+    };
+}
+
+// =========================================================================
+// SISTEM KONTROL GESTURE & MENU RAHASIA ADMIN
+// =========================================================================
+
+function setupAdminControls() {
+    document.getElementById('btn-visible-setting').addEventListener('click', () => {
+        const pinInput = prompt("Masukkan PIN Keamanan Otoritas Kiosk:");
+        if (pinInput === "2026") {
+            openSecretAdminPanel();
+        } else if (pinInput !== null) {
+            alert("PIN Salah. Akses Ditolak!");
+        }
+    });
+
+    document.getElementById('btn-close-secret-modal').addEventListener('click', () => {
+        document.getElementById('secret-modal-container').classList.add('hidden');
+    });
+
+    document.getElementById('btn-execute-csv-local').addEventListener('click', () => {
+        const start = document.getElementById('export-start-date').value;
+        const end = document.getElementById('export-end-date').value;
+
+        if (!start || !end) {
+            alert("Harap tentukan rentang tanggal ekspor data.");
+            return;
+        }
+
+        const transaction = localDb.transaction(['local_scores'], 'readonly');
+        const store = transaction.objectStore('local_scores');
+        const request = store.openCursor();
+        let csvContent = "ID,Kode Lokasi,Nama Pemain,Peak dB,Sustain ms,Skor Akhir,Waktu Bermain\n";
+        let matchCount = 0;
+
+        request.onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                const itemDate = cursor.value.created_at.split(' ')[0];
+                if (cursor.value.location_code === LOCATION_CODE && itemDate >= start && itemDate <= end) {
+                    csvContent += `${cursor.value.id},${cursor.value.location_code},${cursor.value.player_name},${cursor.value.peak_db},${cursor.value.duration_ms},${cursor.value.final_score},${cursor.value.created_at}\n`;
+                    matchCount++;
+                }
+                cursor.continue();
+            } else {
+                if (matchCount === 0) {
+                    alert("Tidak ditemukan rekaman data pada rentang tanggal tersebut.");
+                    return;
+                }
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute("download", `Offline_Report_Kiosk_${LOCATION_CODE}_${start}_to_${end}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        };
+    });
+
+    document.getElementById('btn-execute-sync-cloud').addEventListener('click', async () => {
+        const transaction = localDb.transaction(['local_scores'], 'readonly');
+        const store = transaction.objectStore('local_scores');
+        const request = store.openCursor();
+        let unSyncedRecords = [];
+
+        request.onsuccess = async (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                if (cursor.value.is_synced === 0) {
+                    unSyncedRecords.push(cursor.value);
+                }
+                cursor.continue();
+            } else {
+                if (unSyncedRecords.length === 0) {
+                    alert("Seluruh data lokal Kiosk sudah tersinkronisasi sempurna dengan server Cloud.");
+                    return;
+                }
+
+                try {
+                    const syncBtn = document.getElementById('btn-execute-sync-cloud');
+                    syncBtn.innerText = "SEDANG MENGIRIM DATA MASSAL...";
+                    syncBtn.disabled = true;
+
+                    const response = await fetch(`${API_BASE}/sync_batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ scores: unSyncedRecords })
+                    });
+                    const result = await response.json();
+
+                    if (result.status === 200) {
+                        const writeTransaction = localDb.transaction(['local_scores'], 'readwrite');
+                        const writeStore = writeTransaction.objectStore('local_scores');
+                        
+                        for (let item of unSyncedRecords) {
+                            item.is_synced = 1;
+                            writeStore.put(item);
+                        }
+
+                        alert(`Sinkronisasi Berhasil! ${result.synced_count} data pameran ditransfer ke cloud server.`);
+                        appState.isOnline = true;
+                        openSecretAdminPanel(); 
+                    }
+                } catch (err) {
+                    alert("Koneksi internet gagal. Harap periksa tethering hotspot Anda.");
+                } finally {
+                    const syncBtn = document.getElementById('btn-execute-sync-cloud');
+                    syncBtn.innerText = "MULAI INTEGRASI SINKRONISASI ONLINE";
+                    syncBtn.disabled = false;
+                }
+            }
+        };
+    });
+}
+
+function openSecretAdminPanel() {
+    const transaction = localDb.transaction(['local_scores'], 'readonly');
+    const store = transaction.objectStore('local_scores');
+    const request = store.openCursor();
+    let unsyncedCount = 0;
+
+    request.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+            if (cursor.value.is_synced === 0) unsyncedCount++;
+            cursor.continue();
+        } else {
+            document.getElementById('unsynced-count-display').innerText = unsyncedCount;
+            document.getElementById('secret-modal-container').classList.remove('hidden');
+        }
+    };
 }
 <!-- end file assets/kiosk/js/app.js -->
 
@@ -843,6 +1049,8 @@ class Admin extends CI_Controller {
 
 <!-- file application/controllers/Api.php -->
 <?php
+// File: application/controllers/Api.php
+// Description: API Controller dengan tambahan endpoint sinkronisasi massal (batch sync) dari database lokal Kiosk
 
 defined('BASEPATH') OR exit('No direct script access allowed');
 
@@ -855,12 +1063,17 @@ class Api extends CI_Controller {
         
         header('Content-Type: application/json');
         header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET, POST');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With');
+        
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            exit(0);
+        }
     }
 
     public function init() {
         $location_code = $this->input->get('loc', TRUE);
-        if (empty($location_code)) $location_code = 'JKT-01'; // Fallback
+        if (empty($location_code)) $location_code = 'JKT-01';
 
         $settings = $this->Settings_model->get_all_settings($location_code);
         $assets = $this->Settings_model->get_all_assets($location_code);
@@ -902,6 +1115,45 @@ class Api extends CI_Controller {
 
         $top_10 = $this->Leaderboard_model->get_top_10($location_code);
         echo json_encode(array('status' => 200, 'data' => $top_10));
+    }
+
+    // Endpoint Baru: Menerima kiriman data massal dari IndexedDB Kiosk Offline
+    public function sync_batch() {
+        $stream_clean = $this->security->xss_clean($this->input->raw_input_stream);
+        $request = json_decode($stream_clean, true);
+
+        if (!isset($request['scores']) || !is_array($request['scores'])) {
+            echo json_encode(array('status' => 400, 'message' => 'Payload data tidak valid.'));
+            return;
+        }
+
+        $inserted_records = 0;
+        foreach ($request['scores'] as $row) {
+            $player_name = isset($row['player_name']) ? $row['player_name'] : 'OFFLINE_PLY';
+            $peak_db = isset($row['peak_db']) ? (float)$row['peak_db'] : 0;
+            $duration_ms = isset($row['duration_ms']) ? (int)$row['duration_ms'] : 0;
+            $location_code = isset($row['location_code']) ? $row['location_code'] : 'JKT-01';
+            $created_at = isset($row['created_at']) ? $row['created_at'] : date('Y-m-d H:i:s');
+
+            // Insert langsung tanpa hitung ulang skor karena skor sudah dihitung valid secara lokal di client side
+            $data = array(
+                'location_code' => $location_code,
+                'player_name'   => $player_name,
+                'peak_db'       => $peak_db,
+                'duration_ms'   => $duration_ms,
+                'final_score'   => (int)$row['final_score'],
+                'created_at'    => $created_at
+            );
+
+            $this->db->insert('game_leaderboard', $data);
+            $inserted_records++;
+        }
+
+        echo json_encode(array(
+            'status' => 200,
+            'message' => 'Sinkronisasi sukses dilakukan.',
+            'synced_count' => $inserted_records
+        ));
     }
 }
 <!-- end file application/controllers/Api.php -->
@@ -1108,9 +1360,141 @@ class Leaderboard_model extends CI_Model {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voice-Activated Noodle Game</title>
     <link rel="stylesheet" href="<?= base_url('assets/kiosk/css/style.css'); ?>">
+    
+    <script>
+        const BASE_URL = "<?= base_url(); ?>";
+    </script>
+    
+    <style>
+        /* Desain Pastel Soft UI Khusus Modal Rahasia Admin */
+        .admin-secret-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            width: 800px;
+            background: #ffffff;
+            border: 6px solid #ffdac1;
+            border-radius: 40px;
+            padding: 40px;
+            z-index: 9999;
+            box-shadow: 0 30px 60px rgba(93, 64, 55, 0.2);
+            font-family: 'Segoe UI', 'Quicksand', sans-serif;
+            color: #5d4037;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(93, 64, 55, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 9998;
+        }
+        .modal-header {
+            font-size: 2.2rem;
+            color: #ff9aa2;
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: 900;
+            border-bottom: 4px dashed #fff0f5;
+            padding-bottom: 15px;
+        }
+        .modal-section {
+            background: #fff6f8;
+            border-radius: 25px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 2px solid #ffe5e5;
+        }
+        .modal-section h3 {
+            margin-bottom: 15px;
+            color: #5d4037;
+            font-size: 1.4rem;
+        }
+        .modal-grid {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .modal-input {
+            flex: 1;
+            padding: 15px;
+            font-size: 1.2rem;
+            border: 3px solid #ffe5e5;
+            border-radius: 15px;
+            outline: none;
+            text-align: center;
+        }
+        .modal-input:focus {
+            border-color: #b5ead7;
+        }
+        .modal-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #5d4037;
+            background: #b5ead7;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #8bc34a;
+            transition: all 0.1s;
+        }
+        .modal-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 transparent;
+        }
+        .modal-btn.btn-close {
+            background: #ff9aa2;
+            box-shadow: 0 5px 0 #d84315;
+            color: white;
+            margin-top: 10px;
+        }
+        
+        #btn-visible-setting {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: #ffdac1; 
+            border: 4px solid #ff9aa2; 
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            font-size: 2rem;
+            z-index: 99999;
+            cursor: pointer;
+            opacity: 1; 
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15); 
+            transition: transform 0.2s, background 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #5d4037;
+        }
+        #btn-visible-setting:hover {
+            transform: scale(1.1); 
+            background: #ff9aa2;
+        }
+
+        /* FIX: Tambahan Style khusus untuk tombol kembali ke awal agar tidak terlalu besar */
+        #btn-back-home {
+            margin-top: 30px;
+            font-size: 1.6rem;
+            padding: 15px 50px;
+            background-color: #ff9aa2;
+            color: white;
+            box-shadow: 0 8px 0px #d84315;
+        }
+        #btn-back-home:active {
+            transform: translateY(8px);
+            box-shadow: 0 0px 0px #d84315;
+        }
+    </style>
 </head>
 <body>
+
     <div id="app-container">
+        <button id="btn-visible-setting">⚙️</button>
         
         <section id="state-boot">
             <h1 class="text-title text-bounce">LOADING ASSET...</h1>
@@ -1156,12 +1540,35 @@ class Leaderboard_model extends CI_Model {
                             <th>Score</th>
                         </tr>
                     </thead>
-                    <tbody id="leaderboard-body">
-                        </tbody>
+                    <tbody id="leaderboard-body"></tbody>
                 </table>
             </div>
+            <button id="btn-back-home" class="btn-primary">KEMBALI KE AWAL</button>
         </section>
+    </div>
 
+    <div id="secret-modal-container" class="hidden">
+        <div class="modal-overlay"></div>
+        <div class="admin-secret-modal">
+            <div class="modal-header">KIOSK CONTROL CENTER PANEL</div>
+            
+            <div class="modal-section">
+                <h3>1. Ekspor Data Manually (.CSV Offline)</h3>
+                <div class="modal-grid">
+                    <input type="date" id="export-start-date" class="modal-input">
+                    <input type="date" id="export-end-date" class="modal-input">
+                </div>
+                <button id="btn-execute-csv-local" class="modal-btn">GENERATE & DOWNLOAD CSV</button>
+            </div>
+
+            <div class="modal-section">
+                <h3>2. Sinkronisasi Database Massal (Cloud Sync Engine)</h3>
+                <p style="margin-bottom:15px; font-weight:bold;">Data Belum Tersinkron: <span id="unsynced-count-display" style="color:#ff9aa2;">0</span> Entri</p>
+                <button id="btn-execute-sync-cloud" class="modal-btn" style="background:#ffdac1; box-shadow: 0 5px 0 #d84315;">MULAI INTEGRASI SINKRONISASI ONLINE</button>
+            </div>
+
+            <button id="btn-close-secret-modal" class="modal-btn btn-close">TUTUP PANEL SELESAI</button>
+        </div>
     </div>
 
     <script src="<?= base_url('assets/kiosk/js/audio-engine.js'); ?>"></script>
