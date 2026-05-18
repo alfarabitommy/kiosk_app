@@ -1,4 +1,11 @@
-const API_BASE = '/kiosk/api'; // Menggunakan absolute path sesuai environment lokal
+// File: assets/kiosk/js/app.js
+// Description: State Machine Kiosk yang mengekstrak parameter URL '?loc=' untuk partisi multi-tenant
+
+// Membaca KTP/Identitas Lokasi Kiosk dari Parameter Tautan Browser (?loc=)
+const urlParams = new URLSearchParams(window.location.search);
+const LOCATION_CODE = urlParams.get('loc') || 'JKT-01'; // Default ke JKT-01 jika tanpa parameter
+
+const API_BASE = '/api'; 
 
 const appState = {
     currentState: 'state-boot',
@@ -16,7 +23,6 @@ const appState = {
     idleTimeout: null
 };
 
-// Profanity Filter (Pilar 7 - Failsafe)
 const bannedWords = ['anjing', 'babi', 'bangsat', 'kontol', 'memek', 'jancok'];
 
 function changeState(newStateId) {
@@ -30,38 +36,35 @@ function changeState(newStateId) {
 
 window.onload = () => {
     fetchInitData();
-    // Anti-Right Click / Drag untuk Kiosk Mode
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.addEventListener('dragstart', event => event.preventDefault());
 };
 
-// Fetch API Init untuk memuat Aset Klien dan Aturan Skoring
 async function fetchInitData() {
     try {
-        const res = await fetch(`${API_BASE}/init`);
+        // Mengirimkan parameter loc agar server mengirimkan aset khusus cabang ini
+        const res = await fetch(`${API_BASE}/init?loc=${LOCATION_CODE}`);
         const data = await res.json();
         
         if (data.status === 200) {
             appState.settings.timer_sec = parseInt(data.settings.timer_sec) || 10;
             appState.settings.noise_gate_db = parseInt(data.settings.noise_gate_db) || 40;
             
-            // Injeksi Aset White-Label
-            if(data.assets.bg_main) document.getElementById('kiosk-bg').src = '/kiosk/' + data.assets.bg_main;
-            if(data.assets.prop_bowl) document.getElementById('kiosk-bowl').src = '/kiosk/' + data.assets.prop_bowl;
-            if(data.assets.prop_noodle) document.getElementById('kiosk-noodle').src = '/kiosk/' + data.assets.prop_noodle;
-            if(data.assets.prop_chopstick) document.getElementById('kiosk-chopstick').src = '/kiosk/' + data.assets.prop_chopstick;
+            if(data.assets.bg_main) document.getElementById('kiosk-bg').src = '/' + data.assets.bg_main;
+            if(data.assets.prop_bowl) document.getElementById('kiosk-bowl').src = '/' + data.assets.prop_bowl;
+            if(data.assets.prop_noodle) document.getElementById('kiosk-noodle').src = '/' + data.assets.prop_noodle;
+            if(data.assets.prop_chopstick) document.getElementById('kiosk-chopstick').src = '/' + data.assets.prop_chopstick;
         }
         
         setTimeout(() => {
             changeState('state-idle');
         }, 1500); 
     } catch (err) {
-        console.error("Gagal memuat API Init:", err);
-        alert("Koneksi Database Gagal. Cek XAMPP/Laragon.");
+        console.error("Gagal memuat API Init untuk tenant:", err);
+        alert("Koneksi API Gagal. Periksa Network Inspector.");
     }
 }
 
-// Auto-Reset Kiosk jika ditinggal pengunjung (30 Detik Failsafe)
 function resetIdleTimer() {
     if (appState.idleTimeout) clearTimeout(appState.idleTimeout);
     if (appState.currentState !== 'state-game' && appState.currentState !== 'state-boot') {
@@ -75,12 +78,10 @@ function resetIdleTimer() {
 document.addEventListener('click', resetIdleTimer);
 document.addEventListener('touchstart', resetIdleTimer);
 
-// Tombol navigasi dasar
 document.getElementById('state-idle').addEventListener('click', () => {
     changeState('state-register');
 });
 
-// Submit Nama dan Mulai Game
 document.getElementById('btn-start-game').addEventListener('click', () => {
     const playerName = document.getElementById('input-player-name').value.trim();
     const isBanned = bannedWords.some(word => playerName.toLowerCase().includes(word));
@@ -101,7 +102,6 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     }
 });
 
-// Core Gameplay Loop
 function startGameplay() {
     initAudioEngine(appState.settings.noise_gate_db);
     
@@ -109,12 +109,11 @@ function startGameplay() {
         appState.timeRemaining -= 0.1;
         document.getElementById('ui-timer').innerText = appState.timeRemaining.toFixed(1) + 's';
         
-        // Tracking Kalkulasi API (Peak & Duration)
         if (currentDb > appState.playerData.peakDb) {
             appState.playerData.peakDb = currentDb;
         }
         if (currentDb > appState.settings.noise_gate_db) {
-            appState.playerData.durationMs += 100; // 0.1s = 100ms
+            appState.playerData.durationMs += 100;
         }
 
         if (appState.timeRemaining <= 0) {
@@ -124,11 +123,9 @@ function startGameplay() {
     }, 100);
 }
 
-// Stop Game dan Sync Data
 async function endGameplay() {
     stopAudio();
     
-    // Reset posisi grafis
     document.getElementById('kiosk-noodle').style.transform = `translateX(-50%) translateY(0px)`;
     document.getElementById('kiosk-chopstick').style.transform = `translateX(-50%) translateY(0px)`;
     
@@ -137,6 +134,7 @@ async function endGameplay() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                location_code: LOCATION_CODE, // Mengirimkan identitas cabang saat klaim skor
                 player_name: appState.playerData.name,
                 peak_db: appState.playerData.peakDb,
                 duration_ms: appState.playerData.durationMs
@@ -148,21 +146,20 @@ async function endGameplay() {
             document.getElementById('final-score-display').innerText = data.final_score.toLocaleString();
             changeState('state-result');
             
-            // Tahan layar Result selama 4 detik sebelum pindah Leaderboard
             setTimeout(() => {
                 loadLeaderboard();
             }, 4000); 
         }
     } catch (err) {
-        console.error("Gagal mengirim skor:", err);
+        console.error("Gagal mengirim skor cabang:", err);
         changeState('state-idle');
     }
 }
 
-// Fetch Leaderboard
 async function loadLeaderboard() {
     try {
-        const res = await fetch(`${API_BASE}/top_scores`);
+        // Menampilkan top_scores terfilter khusus cabang ini saja
+        const res = await fetch(`${API_BASE}/top_scores?loc=${LOCATION_CODE}`);
         const data = await res.json();
         
         const tbody = document.getElementById('leaderboard-body');
@@ -186,7 +183,7 @@ async function loadLeaderboard() {
         document.getElementById('input-player-name').value = '';
         
     } catch (err) {
-        console.error("Gagal memuat leaderboard:", err);
+        console.error("Gagal memuat leaderboard cabang:", err);
         changeState('state-idle');
     }
 }
